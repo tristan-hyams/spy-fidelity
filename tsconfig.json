@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    // We run .ts files directly via Node's type-stripping, so the compiler is
+    // used purely for type-checking (`tsc --noEmit`), never for emitting JS.
+    "target": "ESNext",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ESNext"],
+
+    // Strictness: surface as many bugs at compile time as possible.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Required for running/importing `.ts` files directly under Node.
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
