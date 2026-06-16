@@ -1,22 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { buildFrame } from './mp3-frame.fixtures.ts';
 import { createMp3FrameParser, frameLength, parseMp3FrameHeader } from './mp3-frame-parser.ts';
-
-const BITRATES = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320];
-const SAMPLE_RATES = [44100, 48000, 32000];
-
-/** Build a self-consistent MPEG-1 Layer III frame: valid header + zero-filled payload. */
-function buildFrame(bitrateKbps = 128, sampleRateHz = 44100, padding: 0 | 1 = 0): Uint8Array {
-  const bitrateIndex = BITRATES.indexOf(bitrateKbps);
-  const sampleRateIndex = SAMPLE_RATES.indexOf(sampleRateHz);
-  const length = Math.floor((1152 * bitrateKbps * 1000) / (8 * sampleRateHz)) + padding;
-  const frame = new Uint8Array(length);
-  frame[0] = 0xff;
-  frame[1] = 0xfb; // sync + MPEG-1 + Layer III + no CRC
-  frame[2] = (bitrateIndex << 4) | (sampleRateIndex << 2) | (padding << 1);
-  frame[3] = 0x00;
-  return frame;
-}
 
 const ID3V2_HEADER = 10;
 
@@ -55,7 +40,8 @@ async function* chunked(data: Uint8Array, size: number): AsyncIterable<Uint8Arra
 const parser = createMp3FrameParser();
 
 test('parseMp3FrameHeader decodes a valid MPEG-1 Layer III header', () => {
-  assert.deepEqual(parseMp3FrameHeader(buildFrame(128, 44100, 0).subarray(0, 4)), {
+  // Hardcoded header (independent of the fixture) pins the raw byte -> value mapping.
+  assert.deepEqual(parseMp3FrameHeader(new Uint8Array([0xff, 0xfb, 0x90, 0x00])), {
     bitrateKbps: 128,
     sampleRateHz: 44100,
     padding: 0,

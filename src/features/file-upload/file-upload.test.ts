@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { buildApp } from '../../app.ts';
 import { createMp3AnalysisService } from './mp3-analysis.service.ts';
+import { buildFrame } from './mp3-frame.fixtures.ts';
 import { createMp3FrameParser } from './mp3-frame-parser.ts';
 
 /** Build the real app graph with the logger silenced for tests. */
@@ -10,13 +11,6 @@ const buildTestApp = () =>
     { mp3AnalysisService: createMp3AnalysisService(createMp3FrameParser()) },
     { logger: false },
   );
-
-/** A single valid MPEG-1 Layer III frame: 128 kbps / 44.1 kHz, no padding (417 bytes). */
-const buildFrame = (): Uint8Array => {
-  const frame = new Uint8Array(417);
-  frame.set([0xff, 0xfb, 0x90, 0x00], 0);
-  return frame;
-};
 
 test('POST /file-upload rejects unsupported content types with 415', async () => {
   const app = buildTestApp();

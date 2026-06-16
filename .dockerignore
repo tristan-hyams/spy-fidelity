@@ -15,5 +15,6 @@ npm-debug.log*
 .github
 .claude
 **/*.test.ts
+**/*.fixtures.ts
 README.md
 AGENTS.md
