@@ -1,5 +1,5 @@
 {
-  "name": "mp3-spy",
+  "name": "spy-fidelity",
   "version": "0.1.0",
   "description": "An API that counts the audio frames in an MPEG-1 Audio Layer III (MP3) file.",
   "type": "module",
@@ -13,15 +13,15 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check ."
+    "check": "biome check .",
+    "setup": "npm ci && npm run typecheck && npm run check && npm test"
   },
   "dependencies": {
-    "hono": "^4.6.0",
-    "@hono/node-server": "^1.13.0"
+    "fastify": "^5.8.5"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.0",
-    "@types/node": "^22.0.0",
-    "typescript": "^5.6.0"
+    "@biomejs/biome": "^2.5.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^6.0.3"
   }
 }

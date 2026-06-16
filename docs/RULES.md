@@ -1,24 +1,25 @@
-# RULES — mp3-spy
+# RULES - spy-fidelity
 
 Coding rules, conventions, and commands for this project.
 Architecture and package layout live in **[STRUCTURE.md](STRUCTURE.md)**.
 
-> Status: project bootstrap. Tooling/config exist; `src/` is being scaffolded to the
-> conventions below. Treat this as the agreed standard and keep it in sync as code lands.
+> Status: scaffolded. The HTTP layer, DI wiring, error handling, tooling, and tests follow
+> the conventions below; the MPEG‑1 Layer III parser is the remaining TODO. Treat this as
+> the agreed standard and keep it in sync as code lands.
 
 ## What this is
 
 An HTTP API that counts the audio frames in an MPEG‑1 Audio Layer III (MP3) file.
 Single endpoint: `POST /file-upload` → `{ "frameCount": <number> }`.
-MP3 frame parsing is **hand-written** — see constraints below.
+MP3 frame parsing is **hand-written** - see constraints below.
 
 ## Toolchain
 
-- **Runtime:** Node.js ≥ 24 (developed on 25). Runs `.ts` directly via type‑stripping — no build step.
+- **Runtime:** Node.js ≥ 24 (developed on 25). Runs `.ts` directly via type‑stripping - no build step.
 - **Language:** TypeScript, `strict`. ESM (`"type": "module"`).
 - **HTTP framework:** Fastify.
-- **Format + lint:** Biome — config in `biome.json`.
-- **Type-check:** `tsc --noEmit` — config in `tsconfig.json`.
+- **Format + lint:** Biome - config in `biome.json`.
+- **Type-check:** `tsc --noEmit` - config in `tsconfig.json`.
 - **Tests:** Node's built-in runner (`node:test` + `node:assert`).
 
 ## Commands
@@ -33,7 +34,7 @@ MP3 frame parsing is **hand-written** — see constraints below.
 
 ## Architecture rules (layered discipline)
 
-- **Layers, dependencies point DOWN only — never up, no cycles:**
+- **Layers, dependencies point DOWN only - never up, no cycles:**
   Presentation (controllers / Fastify route plugins) → Application (services / business
   logic) → Domain (pure parsing core).
 - A persistence / Repository layer is **intentionally absent** (nothing is persisted). If
@@ -41,7 +42,7 @@ MP3 frame parsing is **hand-written** — see constraints below.
 - **Depend on interfaces, not concrete implementations**, at every seam.
 - **Pure DI:** each unit exposes a `create<Name>(deps): <Interface>` factory (Go-style).
   The composition root (`src/server.ts`) is the **only** place that constructs the concrete
-  graph. No DI container and no service locator at this scale — awilix / `@fastify/awilix`
+  graph. No DI container and no service locator at this scale - awilix / `@fastify/awilix`
   is the documented scale-up path if the graph grows or request-scoping is needed.
 - `buildApp(deps)` returns a configured Fastify instance; `server.ts` wires deps and calls
   it. Tests drive the app via `app.inject()` (no real sockets).
@@ -50,7 +51,7 @@ MP3 frame parsing is **hand-written** — see constraints below.
 
 - **Vertical feature slices:** `src/features/<feature>/` holds that feature's controller,
   service, domain logic, models, and colocated tests.
-- **Shared utility code is kept separate** in `src/shared/` and MUST be **leaf** code —
+- **Shared utility code is kept separate** in `src/shared/` and MUST be **leaf** code -
   pure, dependency-free, and it must **not** import from `src/features/`.
 - Features never import other features; cross-feature reuse goes through `src/shared/`.
 - Concrete tree: see STRUCTURE.md.
@@ -66,7 +67,7 @@ MP3 frame parsing is **hand-written** — see constraints below.
 
 ## TypeScript conventions
 
-- `strict` + `noUncheckedIndexedAccess` (see `tsconfig.json`). No `any` — use `unknown` + narrowing.
+- `strict` + `noUncheckedIndexedAccess` (see `tsconfig.json`). No `any` - use `unknown` + narrowing.
 - Explicit return types on exported functions.
 - Interfaces named for their role, **no Hungarian `I` prefix** (`Mp3FrameParser`, not `IMp3FrameParser`).
 - `import type` for type-only imports (`verbatimModuleSyntax` is on).
@@ -90,10 +91,10 @@ MP3 frame parsing is **hand-written** — see constraints below.
 - Domain errors are typed (e.g. `InvalidMp3Error`) and live in `src/shared/` (or the feature
   when feature-specific).
 - A Fastify `setErrorHandler` / the controller maps errors to an HTTP status + a useful JSON message:
-  - `400` — body isn't a valid MPEG‑1 LIII stream
-  - `413` — upload exceeds the configured max size
-  - `415` — unsupported / missing content type
-  - `500` — unexpected (logged; generic message to client)
+  - `400` - body isn't a valid MPEG‑1 LIII stream
+  - `413` - upload exceeds the configured max size
+  - `415` - unsupported / missing content type
+  - `500` - unexpected (logged; generic message to client)
 - Always respond with JSON and the correct `content-type` header.
 
 ## Security
@@ -105,9 +106,9 @@ MP3 frame parsing is **hand-written** — see constraints below.
 
 - Use Fastify's built-in logger (pino). Structured logs; no `console.log` in app code.
 
-## Referenced config (source of truth — don't duplicate here)
+## Referenced config (source of truth - don't duplicate here)
 
-- `package.json` — scripts, dependencies, engines
-- `tsconfig.json` — strict TS + run-via-Node settings
-- `biome.json` — format + lint rules
+- `package.json` - scripts, dependencies, engines
+- `tsconfig.json` - strict TS + run-via-Node settings
+- `biome.json` - format + lint rules
 - `.gitignore`
