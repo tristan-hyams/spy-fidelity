@@ -7,6 +7,11 @@ frame count is returned as JSON.
 > **Scope:** MPEG Version 1, Layer III - the near-universal `.mp3` format. Other MPEG variants
 > are intentionally out of scope. MP3 frame parsing is hand-written (no third-party MP3 library).
 
+> **Frame counts for the provided `sample_001.mp3`: 6089 audio frames, but 6090 MP3 frames.**
+> The API returns **6090** - every physical MPEG frame in the file. The extra one is the leading
+> Xing/Info metadata frame: a real frame the encoder prepends for VBR/duration info that decodes
+> to silence, so audio tools (which measure decoded samples) report 6089 audio frames.
+
 ## Requirements
 
 - **Node.js ≥ 24** (developed on 25). TypeScript runs directly via Node's native type-stripping -

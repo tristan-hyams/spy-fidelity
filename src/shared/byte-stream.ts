@@ -17,6 +17,7 @@ export async function* enforceMaxBytes(
   source: AsyncIterable<Uint8Array>,
   maxBytes: number,
 ): AsyncIterable<Uint8Array> {
+  // Running total of bytes streamed so far.
   let total = 0;
   for await (const chunk of source) {
     total += chunk.byteLength;

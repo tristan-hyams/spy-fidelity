@@ -2,12 +2,16 @@ import { buildApp } from './app.ts';
 import { createMp3AnalysisService } from './features/file-upload/mp3-analysis.service.ts';
 import { createMp3FrameParser } from './features/file-upload/mp3-frame-parser.ts';
 
+// TCP port to listen on; overridable via the PORT env var (default 3000).
 const PORT = Number(process.env.PORT ?? 3000);
 
 // Composition root: the one and only place that constructs the concrete graph.
 // Dependencies point down - server -> service -> parser -> shared.
+// Domain core: the hand-written MP3 frame parser.
 const mp3FrameParser = createMp3FrameParser();
+// Application service that orchestrates the frame count.
 const mp3AnalysisService = createMp3AnalysisService(mp3FrameParser);
+// The configured Fastify instance, ready to listen.
 const app = buildApp({ mp3AnalysisService: mp3AnalysisService });
 
 try {

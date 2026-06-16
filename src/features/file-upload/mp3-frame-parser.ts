@@ -1,7 +1,11 @@
 import { type ByteReader, createByteReader } from '../../shared/byte-reader.ts';
 import { InvalidMp3Error } from '../../shared/errors.ts';
 import {
+  BITS_PER_BYTE,
+  BITS_PER_KILOBIT,
+  FRAME_HEADER,
   type FrameHeader,
+  ID3V2,
   MPEG1_LAYER3_BITRATES_KBPS,
   MPEG1_LAYER3_SAMPLES_PER_FRAME,
   MPEG1_SAMPLE_RATES_HZ,
@@ -16,87 +20,109 @@ export interface Mp3FrameParser {
   count(source: AsyncIterable<Uint8Array>): Promise<number>;
 }
 
-const FRAME_HEADER_BYTES = 4;
-const ID3V2_HEADER_BYTES = 10;
-const MPEG_VERSION_1 = 0b11; // version bits (20-19)
-const LAYER_III = 0b01; // layer bits (18-17)
-const BITS_PER_BYTE = 8;
-
 /**
  * Decode the 4-byte frame header into the fields needed to size the frame, or
  * return null if these bytes are not a valid MPEG-1 Layer III header. Only the
  * first three bytes matter for counting; byte 4 carries channel info we ignore.
- *
- * Header bit layout (big-endian): byte0 = bits 31-24, byte1 = 23-16, byte2 = 15-8.
+ * See FRAME_HEADER in ./mp3.models.ts for the bit layout these masks reference.
  */
 export const parseMp3FrameHeader = (header: Uint8Array): FrameHeader | null => {
-  if (header.length < FRAME_HEADER_BYTES) {
+  if (header.length < FRAME_HEADER.BYTES) {
     return null;
   }
-  const b0 = header[0] ?? 0;
-  const b1 = header[1] ?? 0;
-  const b2 = header[2] ?? 0;
+  // The three header bytes that carry every field we read.
+  const byte0 = header[0] ?? 0;
+  const byte1 = header[1] ?? 0;
+  const byte2 = header[2] ?? 0;
 
-  // Frame sync: 11 bits all set -> byte 0 is 0xFF and the top 3 bits of byte 1 are 1.
-  if (b0 !== 0xff || (b1 & 0b1110_0000) !== 0b1110_0000) {
+  // Frame sync: 11 bits all set.
+  if (
+    byte0 !== FRAME_HEADER.SYNC_BYTE_0 ||
+    (byte1 & FRAME_HEADER.SYNC_BYTE_1_MASK) !== FRAME_HEADER.SYNC_BYTE_1_MASK
+  ) {
     return null;
   }
-  // In scope: MPEG Version 1 (bits 20-19 = 11) and Layer III (bits 18-17 = 01).
-  if (((b1 >> 3) & 0b11) !== MPEG_VERSION_1 || ((b1 >> 1) & 0b11) !== LAYER_III) {
+  // In scope: MPEG Version 1 and Layer III.
+  if (
+    ((byte1 >> FRAME_HEADER.VERSION_SHIFT) & FRAME_HEADER.VERSION_MASK) !==
+      FRAME_HEADER.VERSION_MPEG_1 ||
+    ((byte1 >> FRAME_HEADER.LAYER_SHIFT) & FRAME_HEADER.LAYER_MASK) !== FRAME_HEADER.LAYER_III
+  ) {
     return null;
   }
 
-  const bitrateKbps = MPEG1_LAYER3_BITRATES_KBPS[(b2 >> 4) & 0b1111];
-  const sampleRateHz = MPEG1_SAMPLE_RATES_HZ[(b2 >> 2) & 0b11];
-  // A "free"/"bad" bitrate or the reserved sample rate is not a frame we can size.
+  // Table indices decoded from byte 2.
+  const bitrateIndex =
+    (byte2 >> FRAME_HEADER.BITRATE_INDEX_SHIFT) & FRAME_HEADER.BITRATE_INDEX_MASK;
+  const sampleRateIndex =
+    (byte2 >> FRAME_HEADER.SAMPLE_RATE_INDEX_SHIFT) & FRAME_HEADER.SAMPLE_RATE_INDEX_MASK;
+  // Decoded bitrate / sample rate (null for free/bad/reserved values).
+  const bitrateKbps = MPEG1_LAYER3_BITRATES_KBPS[bitrateIndex];
+  const sampleRateHz = MPEG1_SAMPLE_RATES_HZ[sampleRateIndex];
   if (bitrateKbps == null || sampleRateHz == null) {
     return null;
   }
 
-  const padding = ((b2 >> 1) & 0b1) as 0 | 1;
+  // Padding bit: adds one extra byte to this frame when set.
+  const padding = ((byte2 >> FRAME_HEADER.PADDING_SHIFT) & FRAME_HEADER.PADDING_MASK) as 0 | 1;
   return { bitrateKbps, sampleRateHz, padding };
 };
 
-/**
- * Frame length in bytes for MPEG-1 Layer III:
- *   floor(samplesPerFrame / 8 * bitrate / sampleRate) + padding
- * where samplesPerFrame / 8 = 1152 / 8 = the well-known "144".
- */
+/** Frame length in bytes for MPEG-1 Layer III (see the formula in ./mp3.models.ts). */
 export const frameLength = ({ bitrateKbps, sampleRateHz, padding }: FrameHeader): number =>
   Math.floor(
-    (MPEG1_LAYER3_SAMPLES_PER_FRAME * bitrateKbps * 1000) / (BITS_PER_BYTE * sampleRateHz),
+    (MPEG1_LAYER3_SAMPLES_PER_FRAME * bitrateKbps * BITS_PER_KILOBIT) /
+      (BITS_PER_BYTE * sampleRateHz),
   ) + padding;
 
 /**
  * If the stream starts with an ID3v2 tag ("ID3"), skip past it so the first
- * thing we parse is real audio. The tag size is a 28-bit "syncsafe" integer
- * (the high bit of each of the four size bytes is always 0).
+ * thing we parse is real audio. The tag size is a syncsafe integer - 7 usable
+ * bits per byte - so it never collides with a frame sync.
  */
 const skipId3v2Tag = async (reader: ByteReader): Promise<void> => {
-  const head = await reader.peek(ID3V2_HEADER_BYTES);
-  if (head === null || head[0] !== 0x49 || head[1] !== 0x44 || head[2] !== 0x33) {
+  // The 10-byte ID3v2 header, or null if the stream is shorter.
+  const head = await reader.peek(ID3V2.HEADER_BYTES);
+  if (
+    head === null ||
+    head[0] !== ID3V2.MAGIC[0] ||
+    head[1] !== ID3V2.MAGIC[1] ||
+    head[2] !== ID3V2.MAGIC[2]
+  ) {
     return; // no ID3v2 tag - leave the stream untouched
   }
-  // peek guarantees ID3V2_HEADER_BYTES bytes here, so these indexes are present.
-  const flags = head[5] ?? 0;
-  const size =
-    ((head[6] ?? 0) << 21) | ((head[7] ?? 0) << 14) | ((head[8] ?? 0) << 7) | (head[9] ?? 0);
-  const footerBytes = (flags & 0b0001_0000) !== 0 ? ID3V2_HEADER_BYTES : 0;
-  await reader.discard(ID3V2_HEADER_BYTES + size + footerBytes);
+
+  // Tag body size, reassembled from the syncsafe size field.
+  let size = 0;
+  for (let i = 0; i < ID3V2.SIZE_BYTES; i += 1) {
+    // One syncsafe size byte (only its low 7 bits count).
+    const sizeByte = head[ID3V2.SIZE_OFFSET + i] ?? 0;
+    size = (size << ID3V2.SYNCSAFE_BITS_PER_BYTE) | (sizeByte & ID3V2.SYNCSAFE_BYTE_MASK);
+  }
+  // Whether a 10-byte footer trails the tag.
+  const hasFooter = ((head[ID3V2.FLAGS_OFFSET] ?? 0) & ID3V2.FOOTER_FLAG) !== 0;
+  // Extra bytes to skip for that optional footer.
+  const footerBytes = hasFooter ? ID3V2.HEADER_BYTES : 0;
+  await reader.discard(ID3V2.HEADER_BYTES + size + footerBytes);
 };
 
+/** Build the streaming MP3 frame parser. */
 export const createMp3FrameParser = (): Mp3FrameParser => ({
   async count(source: AsyncIterable<Uint8Array>): Promise<number> {
+    // Streaming reader over the upload.
     const reader = createByteReader(source);
     await skipId3v2Tag(reader);
 
+    // Running count of valid frames seen so far.
     let frames = 0;
     for (;;) {
-      const header = await reader.peek(FRAME_HEADER_BYTES);
+      // The next candidate 4-byte header, or null at end of stream.
+      const header = await reader.peek(FRAME_HEADER.BYTES);
       if (header === null) {
         break; // fewer than 4 bytes remain -> end of stream
       }
 
+      // The decoded header, or null if these bytes are not a valid frame.
       const parsed = parseMp3FrameHeader(header);
       if (parsed === null) {
         // Not a frame boundary (leading junk, an ID3v1/APE trailer, corruption):

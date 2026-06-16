@@ -4,6 +4,9 @@ import { createFileUploadController } from './features/file-upload/file-upload.c
 import type { Mp3AnalysisService } from './features/file-upload/mp3-analysis.service.ts';
 import { AppError } from './shared/errors.ts';
 
+/** Content types whose raw body is streamed straight to the parser; anything else -> 415. */
+const SUPPORTED_AUDIO_CONTENT_TYPES = ['audio/mpeg', 'application/octet-stream'];
+
 /** Everything the HTTP app needs, injected from the composition root. */
 export interface AppDependencies {
   mp3AnalysisService: Mp3AnalysisService;
@@ -19,13 +22,14 @@ export interface BuildAppOptions {
  * `listen()` so tests can drive it via `app.inject()` with no real sockets.
  */
 export const buildApp = (deps: AppDependencies, options: BuildAppOptions = {}): FastifyInstance => {
+  // The Fastify instance assembled and returned below.
   const app = Fastify({ logger: options.logger ?? true });
 
   // Stream the raw request body straight to the handler instead of buffering it.
   // Removing the default parsers means any other content type returns 415.
   app.removeAllContentTypeParsers();
   app.addContentTypeParser(
-    ['audio/mpeg', 'application/octet-stream'],
+    SUPPORTED_AUDIO_CONTENT_TYPES,
     (
       _request: FastifyRequest,
       payload: IncomingMessage,
@@ -44,6 +48,7 @@ export const buildApp = (deps: AppDependencies, options: BuildAppOptions = {}): 
     // Fastify/validation errors (e.g. 415 unsupported media type) carry their own
     // numeric statusCode; honour it and mask details for unexpected 5xx failures.
     const err = error as { statusCode?: number; name?: string; message?: string };
+    // Use the error's own 4xx status when present, otherwise treat it as a 500.
     const statusCode =
       typeof err.statusCode === 'number' && err.statusCode >= 400 ? err.statusCode : 500;
     if (statusCode >= 500) {
