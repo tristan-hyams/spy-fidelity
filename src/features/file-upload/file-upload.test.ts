@@ -7,9 +7,16 @@ import { createMp3FrameParser } from './mp3-frame-parser.ts';
 /** Build the real app graph with the logger silenced for tests. */
 const buildTestApp = () =>
   buildApp(
-    { analysisService: createMp3AnalysisService(createMp3FrameParser()) },
+    { mp3AnalysisService: createMp3AnalysisService(createMp3FrameParser()) },
     { logger: false },
   );
+
+/** A single valid MPEG-1 Layer III frame: 128 kbps / 44.1 kHz, no padding (417 bytes). */
+const buildFrame = (): Uint8Array => {
+  const frame = new Uint8Array(417);
+  frame.set([0xff, 0xfb, 0x90, 0x00], 0);
+  return frame;
+};
 
 test('POST /file-upload rejects unsupported content types with 415', async () => {
   const app = buildTestApp();
@@ -28,13 +35,24 @@ test('POST /file-upload rejects an empty/headerless body with 400', async () => 
   assert.equal(response.statusCode, 400);
 });
 
-// TODO(candidate): after implementing the parser, add `samples/sample.mp3` to the
-// repo and remove `skip` to assert the real frame count end-to-end.
-test('POST /file-upload returns the frame count for the sample file', {
-  skip: 'implement the parser, then add samples/sample.mp3 and the expected count',
-}, async () => {
+test('POST /file-upload returns the frame count for a synthetic MP3 body', async () => {
+  const app = buildTestApp();
+  const body = Buffer.concat([buildFrame(), buildFrame(), buildFrame()]);
+  const response = await app.inject({
+    method: 'POST',
+    url: '/file-upload',
+    headers: { 'content-type': 'audio/mpeg' },
+    payload: body,
+  });
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { frameCount: 3 });
+});
+
+// End-to-end against the real 1.4 MB VBR fixture. The expected 6090 was cross-checked against
+// the file's own Xing header, which declares 6089 frames (excluding its own info frame): 6089 + 1.
+test('POST /file-upload returns the frame count for the provided sample file', async () => {
   const { readFile } = await import('node:fs/promises');
-  const bytes = await readFile(new URL('../../../samples/sample.mp3', import.meta.url));
+  const bytes = await readFile(new URL('../../../samples/sample_001.mp3', import.meta.url));
   const app = buildTestApp();
   const response = await app.inject({
     method: 'POST',
@@ -43,5 +61,5 @@ test('POST /file-upload returns the frame count for the sample file', {
     payload: bytes,
   });
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(response.json(), { frameCount: 0 /* TODO: expected count */ });
+  assert.deepEqual(response.json(), { frameCount: 6090 });
 });

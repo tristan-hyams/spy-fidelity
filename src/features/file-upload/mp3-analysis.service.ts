@@ -11,9 +11,9 @@ export interface Mp3AnalysisService {
   countFrames(source: AsyncIterable<Uint8Array>): Promise<FrameCountResult>;
 }
 
-export const createMp3AnalysisService = (parser: Mp3FrameParser): Mp3AnalysisService => ({
+export const createMp3AnalysisService = (mp3FrameParser: Mp3FrameParser): Mp3AnalysisService => ({
   async countFrames(source): Promise<FrameCountResult> {
-    const frameCount = await parser.count(source);
+    const frameCount = await mp3FrameParser.count(source);
     return { frameCount };
   },
 });

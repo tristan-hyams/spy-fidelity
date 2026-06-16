@@ -21,18 +21,29 @@ export const MPEG1_LAYER3_SAMPLES_PER_FRAME = 1152;
 
 /**
  * MPEG-1 Layer III bitrate table. Index = header bits 15-12 -> kbps.
- * Index 0b0000 ("free") and 0b1111 ("bad") are invalid here (null).
- *
- * TODO(candidate): transcribe the values from the MPEG-1 frame-header spec.
- *   [null, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, null]
+ * Index 0b0000 ("free") and 0b1111 ("bad") are invalid for our purposes (null).
  */
-export const MPEG1_LAYER3_BITRATES_KBPS: readonly (number | null)[] = [];
+export const MPEG1_LAYER3_BITRATES_KBPS: readonly (number | null)[] = [
+  null,
+  32,
+  40,
+  48,
+  56,
+  64,
+  80,
+  96,
+  112,
+  128,
+  160,
+  192,
+  224,
+  256,
+  320,
+  null,
+];
 
 /**
  * MPEG-1 sample-rate table. Index = header bits 11-10 -> Hz.
  * Index 0b11 is reserved (null).
- *
- * TODO(candidate): transcribe the values from the spec.
- *   [44100, 48000, 32000, null]
  */
-export const MPEG1_SAMPLE_RATES_HZ: readonly (number | null)[] = [];
+export const MPEG1_SAMPLE_RATES_HZ: readonly (number | null)[] = [44100, 48000, 32000, null];

@@ -6,9 +6,9 @@ const PORT = Number(process.env.PORT ?? 3000);
 
 // Composition root: the one and only place that constructs the concrete graph.
 // Dependencies point down - server -> service -> parser -> shared.
-const parser = createMp3FrameParser();
-const analysisService = createMp3AnalysisService(parser);
-const app = buildApp({ analysisService });
+const mp3FrameParser = createMp3FrameParser();
+const mp3AnalysisService = createMp3AnalysisService(mp3FrameParser);
+const app = buildApp({ mp3AnalysisService: mp3AnalysisService });
 
 try {
   await app.listen({ port: PORT, host: '0.0.0.0' });

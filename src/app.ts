@@ -6,7 +6,7 @@ import { AppError } from './shared/errors.ts';
 
 /** Everything the HTTP app needs, injected from the composition root. */
 export interface AppDependencies {
-  analysisService: Mp3AnalysisService;
+  mp3AnalysisService: Mp3AnalysisService;
 }
 
 export interface BuildAppOptions {
@@ -55,6 +55,6 @@ export const buildApp = (deps: AppDependencies, options: BuildAppOptions = {}): 
     });
   });
 
-  app.register(createFileUploadController(deps.analysisService));
+  app.register(createFileUploadController(deps.mp3AnalysisService));
   return app;
 };

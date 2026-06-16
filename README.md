@@ -124,12 +124,14 @@ src/
 npm test
 ```
 
-Tests drive the app in-process via Fastify's `app.inject()` (no real sockets). The end-to-end
-frame-count test is skipped until the parser is implemented and `samples/sample.mp3` is added.
+Tests drive the app in-process via Fastify's `app.inject()` (no real sockets), and the parser is
+unit-tested with synthetic frames. An end-to-end test counts the provided
+`samples/sample_001.mp3` and asserts **6090** frames.
 
 ## Status
 
-The HTTP layer, dependency-injection wiring, error handling, tooling, and tests are complete. The
-MPEG-1 Layer III frame parser
-([`src/features/file-upload/mp3-frame-parser.ts`](src/features/file-upload/mp3-frame-parser.ts)) is
-the remaining piece - see its step-by-step TODO.
+The full pipeline is implemented and the test suite is green: the HTTP layer, dependency-injection
+wiring, error handling, tooling, and the hand-written MPEG-1 Layer III frame parser
+([`src/features/file-upload/mp3-frame-parser.ts`](src/features/file-upload/mp3-frame-parser.ts)).
+The provided `samples/sample_001.mp3` is counted end-to-end (**6090** frames), cross-checked
+against the file's own Xing header, which declares 6089 frames + its own info frame = 6090.

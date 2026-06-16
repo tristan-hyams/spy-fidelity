@@ -3,8 +3,8 @@
 Coding rules, conventions, and commands for this project.
 Architecture and package layout live in **[STRUCTURE.md](STRUCTURE.md)**.
 
-> Status: scaffolded. The HTTP layer, DI wiring, error handling, tooling, and tests follow
-> the conventions below; the MPEG‑1 Layer III parser is the remaining TODO. Treat this as
+> Status: implemented. The HTTP layer, DI wiring, error handling, tooling, and tests follow
+> the conventions below; the MPEG‑1 Layer III parser is implemented. Treat this as
 > the agreed standard and keep it in sync as code lands.
 
 ## What this is
