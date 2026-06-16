@@ -51,14 +51,18 @@ npm run dev      # auto-reloading server on http://localhost:3000
 > `npm run setup` prepares a workstation for **local debugging** (no Docker). To only install
 > dependencies, plain `npm install` works too.
 
-Count the frames in a file:
+Count the frames in the sample (run from the repo root). macOS / Linux / Git-Bash:
 
 ```bash
-curl -X POST \
-  -H "Content-Type: audio/mpeg" \
-  --data-binary @samples/sample.mp3 \
-  http://localhost:3000/file-upload
-# => {"frameCount":<number>}
+curl -X POST -H "Content-Type: audio/mpeg" --data-binary @samples/sample_001.mp3 http://localhost:3000/file-upload
+# => {"frameCount":6090}
+```
+
+On Windows **PowerShell**, call `curl.exe` - the bare `curl` alias is `Invoke-WebRequest` and won't
+accept `--data-binary @file`:
+
+```powershell
+curl.exe -X POST -H "Content-Type: audio/mpeg" --data-binary "@samples/sample_001.mp3" http://localhost:3000/file-upload
 ```
 
 ## API
@@ -76,6 +80,24 @@ curl -X POST \
 
 The body is **streamed** to the parser rather than buffered, so memory stays flat regardless of
 file size.
+
+### Calling it
+
+```bash
+# application/octet-stream is also accepted
+curl -X POST -H "Content-Type: application/octet-stream" --data-binary @samples/sample_001.mp3 http://localhost:3000/file-upload
+
+# show the HTTP status alongside the body
+curl -s -w "\nHTTP %{http_code}\n" -X POST -H "Content-Type: audio/mpeg" --data-binary @samples/sample_001.mp3 http://localhost:3000/file-upload
+
+# error paths
+curl -i -X POST -H "Content-Type: text/plain" --data "nope" http://localhost:3000/file-upload   # -> 415
+curl -i -X POST http://localhost:3000/file-upload                                                # -> 400 (empty body)
+```
+
+**Gotchas:** use `--data-binary`, not `-d` / `--data` (plain `-d` strips newlines and corrupts the
+binary, giving a wrong count); run from the repo root so `samples/sample_001.mp3` resolves (or pass
+an absolute path); on PowerShell use `curl.exe` (see [Quick start](#quick-start)).
 
 ## npm scripts
 

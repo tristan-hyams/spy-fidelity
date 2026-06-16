@@ -2,9 +2,9 @@
 
 Coding rules and conventions live in **[RULES.md](RULES.md)**.
 
-> Status: implemented. The full pipeline - HTTP layer, DI wiring, error handling, the MPEG-1
-> Layer III frame parser, tooling, and tests - is in place and green. Adding the provided
-> `samples/sample.mp3` enables the optional real-file cross-check test.
+> Status: complete. The full pipeline - HTTP layer, DI wiring, error handling, the MPEG-1 Layer III
+> frame parser, tooling, and tests - is implemented and green, and verified end-to-end against the
+> provided `samples/sample_001.mp3` (6090 frames).
 
 ## Overview
 
@@ -30,7 +30,7 @@ src/
       file-upload.controller.ts   # presentation: route, request guard, JSON response
       mp3-analysis.service.ts     # application: orchestrates the count (interface + factory)
       mp3-frame-parser.ts         # domain: streaming frame parser + header decode
-      mp3.models.ts               # types/DTOs + MPEG-1 reference tables
+      mp3.models.ts               # types/DTOs + MPEG-1 format constants (FRAME_HEADER, ID3V2) + tables
       *.test.ts                   # colocated unit + app.inject() tests
   shared/                         # leaf-only cross-cutting helpers (no feature imports)
     byte-reader.ts                # pure: rolling-buffer reader over a byte stream (peek/discard)
@@ -57,6 +57,21 @@ server.ts  (composition root - constructs the concrete graph)
 - `shared/` is a **leaf**: depended on by features, depends on nothing in the app.
 - Features never import other features; reuse flows through `shared/`.
 - The only module that knows concrete implementations is `server.ts`.
+
+## Frame counting
+
+`mp3-frame-parser.ts` walks the stream through the shared `ByteReader`:
+
+1. Skip a leading ID3v2 tag (`"ID3"`, syncsafe size, optional footer).
+2. `peek` 4 bytes; validate the header (sync + MPEG-1 + Layer III) and decode bitrate / sample-rate
+   / padding via the named `FRAME_HEADER` masks in `mp3.models.ts`.
+3. Count the frame and `discard` its computed length
+   (`floor(1152 / 8 * bitrate / sampleRate) + padding`); on an invalid header, `discard(1)` to re-sync.
+4. Repeat to end-of-stream; if no valid frames are found, raise `InvalidMp3Error` (400).
+
+It counts **every physical frame**, including a VBR file's leading Xing/Info metadata frame. For
+`sample_001.mp3` that is **6090** MP3 frames = 6089 audio frames + the Xing/Info frame, cross-checked
+against the file's own Xing header (which declares 6089, excluding itself).
 
 ## Integration points (need -> where)
 
