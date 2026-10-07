@@ -17,7 +17,7 @@
     "setup": "npm ci && npm run typecheck && npm run check && npm test"
   },
   "dependencies": {
-    "fastify": "^5.8.5"
+    "fastify": "^5.12.5"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.0",
